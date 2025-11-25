@@ -1,0 +1,246 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Book;
+use App\Models\ReadingProgress;
+use Auth;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Smalot\PdfParser\Parser;
+use Storage;
+
+class BookController extends Controller
+{
+    public function index(): JsonResponse{
+        $books = Book::with(['user', 'categories'])->get();
+        return response()->json([
+            'success' => true,
+            'message' => "Books succcessfully retrieved",
+            'data' => $books
+        ]);
+    }
+
+    public function getContinueRead(){
+        $userId = auth()->id();
+
+        $progressList = ReadingProgress::with('book')
+            ->where('user_id', $userId)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Reading progress list',
+            'data' => $progressList->map(function ($item) {
+                return [
+                    'book_id'       => $item->book->id,
+                    'title'         => $item->book->name,
+                    'cover'         => $item->book->cover_url,
+                    'total_pages'   => $item->book->pages,
+                    'progress_page' => $item->progress_page,
+                    'updated_at'    => $item->updated_at,
+                ];
+            })
+        ]);
+    }
+
+    public function show($id){
+        $book = Book::with(['user', 'categories'])->find($id);
+
+        if (!$book) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Book not found'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Book succcessfully retrieved",
+            'data' => $book
+        ]);
+    }
+
+    public function showAuthenticated($id){
+        $book = Book::with(['user', 'categories'])->find($id);
+
+        if (!$book) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Book not found'
+            ], 404);
+        }
+
+        $user = auth()->user();
+        $responseData = $book->toArray();
+
+        if ($user) {
+            $progress = $book->readingProgresses()
+                ->where('user_id', $user->id)
+                ->first();
+
+            $responseData['progress_page'] = $progress->progress_page ?? null;
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Book succcessfully retrieved",
+            'data' => $responseData
+        ]);
+    }
+
+
+    public function store(Request $request){
+        $user = $request->user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => "User not authenticated"
+            ], 401);
+        }
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'required|string',
+            'author' => 'required|string|max:255',
+            'publisher' => 'required|string|max:255',
+            'published_date' => 'required|date',
+            'cover' => 'required|image|mimes:jpg,jpeg,png|max:2048', // 2MB max
+            'pdf' => 'required|mimes:pdf|max:10240', // 10MB max
+            'is_visible' => 'boolean',
+            'categories' => 'required|array',        // must be array
+            'categories.*' => 'integer|exists:categories,id'
+        ]);
+
+        // Handle cover upload
+        if ($request->hasFile('cover')) {
+            $coverPath = $request->file('cover')->store('covers', 'public');
+            $validated['cover_url'] = 'storage/' . $coverPath;
+        }
+
+        // Handle PDF upload
+        if ($request->hasFile('pdf')) {
+            $pdfFile = $request->file('pdf');
+            $pdfPath = $pdfFile->store('pdfs', 'public');
+            $validated['pdf_url'] = 'storage/' . $pdfPath;
+
+            // 🔥 Detect total pages using smalot/pdf-parser
+            $parser = new Parser();
+            $pdf = $parser->parseFile($pdfFile->getRealPath());
+
+            $details = $pdf->getDetails();
+            $validated['pages'] = $details['Pages'] ?? 0;
+        }
+        
+        $validated['user_id'] = $user->id;
+
+        $book = Book::create($validated);
+        $book->categories()->sync($validated['categories']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Book created successfully',
+            'data' => $book
+        ], 201);
+    }
+
+    public function update(Request $request, $id){
+        $user = $request->user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => "User not authenticated"
+            ], 401);
+        }
+
+        // Book must exist
+        $book = Book::find($id);
+
+        if (!$book) {
+            return response()->json([
+                'success' => false,
+                'message' => "Book not found"
+            ], 404);
+        }
+
+        // Must be the owner
+        if ($user->id !== $book->user_id) {
+            return response()->json([
+                'success' => false,
+                'message' => "You do not have permission to edit this book"
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'description' => 'sometimes|string',
+            'author' => 'sometimes|string|max:255',
+            'publisher' => 'sometimes|string|max:255',
+            'published_date' => 'sometimes|date',
+            'pages' => 'sometimes|integer|min:1',
+            'cover_url' => 'sometimes|image|mimes:jpg,jpeg,png|max:2048',
+            'is_visible' => 'sometimes|boolean',
+            'categories' => 'sometimes|array',
+            'categories.*' => 'integer|exists:categories,id'
+        ]);
+        if ($request->hasFile('cover_url')) {
+            // Delete old picture if needed (optional)
+            if (isset($book) && $book->cover_url) {
+                $oldPath = str_replace('storage/', '', $book->cover_url);
+                Storage::disk('public')->delete($oldPath);
+            }
+
+            // Save new picture
+            $coverPath = $request->file('cover_url')->store('covers', 'public');
+            $validated['cover_url'] = 'storage/' . $coverPath;
+        } 
+        
+
+        $book->update($validated);
+        if ($request->has('categories')) {
+            $book->categories()->sync($request->categories);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Book updated successfully',
+            'data' => $book
+        ]);
+    }
+    public function saveProgress(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'progress_page' => 'required|integer|min:1',
+        ]);
+
+        $progress = ReadingProgress::updateOrCreate(
+            [
+                'user_id' => auth()->id(),
+                'book_id' => $id
+            ],
+            [
+                'progress_page' => $validated['progress_page']
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Progress saved successfully',
+            'data' => $progress
+        ]);
+    }
+    public function getYourBook(){
+        $user = Auth::guard('sanctum')->user();
+        if(!$user){
+            return response()->json([
+                'success' => false,
+                'message' => "User not authenticated"
+            ], 401);
+        }
+        $books = $user->book()->get();
+        return response()->json([
+            'success' => true,
+            'message' => 'User books retrieved successfully',
+            'data' => $books
+        ]);
+    }
+}
