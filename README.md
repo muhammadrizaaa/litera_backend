@@ -40,6 +40,8 @@ php artisan migrate
 
 composer require laravel/socialite
 
+composer require smalot/pdfParser
+
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 GOOGLE_REDIRECT_URI=http://localhost:8000/auth/google/callback
