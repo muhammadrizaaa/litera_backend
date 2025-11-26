@@ -30,11 +30,25 @@ class Book extends Model
         'is_visible' => 'boolean',
         'published_date' => 'date',
     ];
-    protected $appends = ['categories'];
+    protected $appends = ['is_favorited', 'fav_counts', 'readers_counts', 'categories'];
 
     protected $hidden = ['assignedToCategories'];
+    public function getReadersCountsAttribute(){
+        return $this->readingProgresses()->count();
+    }
 
-    // Optional: if you want relationship to User
+    public function getFavCountsAttribute(){
+        return $this->favoritedByUser()->count();
+    }
+    public function getIsFavoritedAttribute()
+    {
+        $user = auth()->user();
+
+        if (!$user) return false;
+
+        return $this->favoritedByUser()->where('user_id', $user->id)->exists();
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -48,5 +62,8 @@ class Book extends Model
 
     public function getCategoriesAttribute(){
         return $this->categories()->get();
+    }
+    public function favoritedByUser(){
+        return $this->belongsToMany(User::class, 'book_user_favorites')->withTimestamps();
     }
 }

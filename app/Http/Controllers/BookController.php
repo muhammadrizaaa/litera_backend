@@ -123,7 +123,7 @@ class BookController extends Controller
             $pdfPath = $pdfFile->store('pdfs', 'public');
             $validated['pdf_url'] = 'storage/' . $pdfPath;
 
-            // 🔥 Detect total pages using smalot/pdf-parser
+            // Detect total pages using smalot/pdf-parser
             $parser = new Parser();
             $pdf = $parser->parseFile($pdfFile->getRealPath());
 
@@ -177,12 +177,12 @@ class BookController extends Controller
             'publisher' => 'sometimes|string|max:255',
             'published_date' => 'sometimes|date',
             'pages' => 'sometimes|integer|min:1',
-            'cover_url' => 'sometimes|image|mimes:jpg,jpeg,png|max:2048',
+            'cover' => 'sometimes|image|mimes:jpg,jpeg,png|max:2048',
             'is_visible' => 'sometimes|boolean',
             'categories' => 'sometimes|array',
             'categories.*' => 'integer|exists:categories,id'
         ]);
-        if ($request->hasFile('cover_url')) {
+        if ($request->hasFile('cover')) {
             // Delete old picture if needed (optional)
             if (isset($book) && $book->cover_url) {
                 $oldPath = str_replace('storage/', '', $book->cover_url);
@@ -190,7 +190,7 @@ class BookController extends Controller
             }
 
             // Save new picture
-            $coverPath = $request->file('cover_url')->store('covers', 'public');
+            $coverPath = $request->file('cover')->store('covers', 'public');
             $validated['cover_url'] = 'storage/' . $coverPath;
         } 
         
@@ -241,6 +241,66 @@ class BookController extends Controller
             'success' => true,
             'message' => 'User books retrieved successfully',
             'data' => $books
+        ]);
+    }
+
+    public function getFavBooks(){
+        $user = Auth::guard('sanctum')->user();
+        if(!$user){
+            return response()->json([
+                'success' => false,
+                'message' => "User not authenticated"
+            ], 401);
+        }
+        return response()->json([
+            'success' => true,
+            'message' => 'Successfully added favorite book',
+            'data' => $user->favoriteBook()->get()
+        ]);
+    }
+
+    public function addFavBook($id){
+        $user = Auth::guard('sanctum')->user();
+        if(!$user){
+            return response()->json([
+                'success' => false,
+                'message' => "User not authenticated"
+            ], 401);
+        }
+        $book = Book::find($id);
+        if(!$book){
+            return response()->json([
+                'success' => false,
+                'message' => "Book not found"
+            ], 404);
+        }
+        $user->favoriteBook()->syncWithoutDetaching($id);
+        return response()->json([
+            'success' => true,
+            'message' => 'Successfully added favorite book',
+            'data' => $book
+        ]);
+    }
+    public function removeFavBook($id){
+        $user = Auth::guard('sanctum')->user();
+        if(!$user){
+            return response()->json([
+                'success' => false,
+                'message' => "User not authenticated"
+            ], 401);
+        }
+        $book = Book::find($id);
+        if(!$book){
+            return response()->json([
+                'success' => false,
+                'message' => "Book not found"
+            ], 404);
+        }
+        $user->favoriteBook()->detach($id);
+        return response()->json([
+            'success' => true,
+            'message' => 'Successfully remove favorite book',
+            'data' => $book
         ]);
     }
 }
