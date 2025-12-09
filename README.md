@@ -23,7 +23,7 @@ Before running this project, make sure you have:
 
 ### 1️⃣ Clone the repository
 ```bash
-git clone https://github.com/yourusername/yourproject.git
+git clone https://github.com/muhammadrizaaa/litera_backend
 cd yourproject
 
 composer install
