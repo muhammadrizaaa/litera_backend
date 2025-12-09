@@ -30,6 +30,7 @@ Route::middleware(['auth:sanctum', 'api.auth'])->group(function () {
     Route::get("/authenticated/fav-book/get", [BookController::class, 'getFavBooks']);
     Route::post("/authenticated/fav-book/add/{id}", [BookController::class, 'addFavBook']);
     Route::post("/authenticated/fav-book/remove/{id}", [BookController::class, 'removeFavBook']);
+    Route::post("/authenticated/reaction/{bookId}/{reaction}", [BookController::class, 'addBookReaction']);
 });
 Route::get("/books/{id}", [BookController::class, 'show']);
 

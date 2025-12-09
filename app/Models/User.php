@@ -58,6 +58,9 @@ class User extends Authenticatable
     public function readingProgresses(){
         return $this->hasMany(ReadingProgress::class, 'user_id');
     }
+    public function reactions(){
+        return $this->hasMany(BookReaction::class, 'user_id');
+    }
     public function book(){
         return $this->hasMany(Book::class, 'user_id');
     }

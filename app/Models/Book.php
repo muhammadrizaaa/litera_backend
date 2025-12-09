@@ -30,7 +30,7 @@ class Book extends Model
         'is_visible' => 'boolean',
         'published_date' => 'date',
     ];
-    protected $appends = ['is_favorited', 'fav_counts', 'readers_counts', 'categories'];
+    protected $appends = ['user_reaction', 'is_favorited', 'fav_counts', 'readers_counts', 'categories'];
 
     protected $hidden = ['assignedToCategories'];
     public function getReadersCountsAttribute(){
@@ -53,6 +53,9 @@ class Book extends Model
     {
         return $this->belongsTo(User::class);
     }
+    public function bookReactions(){
+        return $this->hasMany(BookReaction::class, 'book_id');
+    }
     public function readingProgresses(){
         return $this->hasMany(ReadingProgress::class, 'book_id');
     }
@@ -65,5 +68,23 @@ class Book extends Model
     }
     public function favoritedByUser(){
         return $this->belongsToMany(User::class, 'book_user_favorites')->withTimestamps();
+    }
+    public function getLikesAttribute()
+    {
+        return $this->bookReactions()->where('reaction', 1)->count();
+    }
+
+    public function getDislikesAttribute()
+    {
+        return $this->bookReactions()->where('reaction', -1)->count();
+    }
+
+    public function getUserReactionAttribute()
+    {
+        if (!auth()->check()) return 0;
+
+        return $this->bookReactions()
+            ->where('user_id', auth()->id())
+            ->value('reaction') ?? 0;
     }
 }

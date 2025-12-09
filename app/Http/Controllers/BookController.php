@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Book;
+use App\Models\BookReaction;
 use App\Models\ReadingProgress;
 use Auth;
 use Illuminate\Http\JsonResponse;
@@ -79,7 +80,7 @@ class BookController extends Controller
                 ->where('user_id', $user->id)
                 ->first();
 
-            $responseData['progress_page'] = $progress->progress_page ?? null;
+            $responseData['progress_page'] = $progress->progress_page ?? 0;
         }
 
         return response()->json([
@@ -254,7 +255,7 @@ class BookController extends Controller
         }
         return response()->json([
             'success' => true,
-            'message' => 'Successfully added favorite book',
+            'message' => 'Successfully got favorite book',
             'data' => $user->favoriteBook()->get()
         ]);
     }
@@ -301,6 +302,49 @@ class BookController extends Controller
             'success' => true,
             'message' => 'Successfully remove favorite book',
             'data' => $book
+        ]);
+    }
+    public function addBookReaction($bookId, $reaction){
+        $user = Auth::guard('sanctum')->user();
+        if(!$user){
+            return response()->json([
+                'success' => false,
+                'message' => "User not authenticated"
+            ], 401);
+        }
+        $existing = BookReaction::where('book_id', $bookId)
+                                ->where('user_id', $user->id)
+                                ->first();
+
+        if (!$existing) {
+            BookReaction::create([
+                'book_id' => $bookId,
+                'user_id' => $user->id,
+                'reaction' => $reaction
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message'  => 'created'
+            ]);
+        }
+
+        if ($existing->reaction == $reaction) {
+            $existing->delete();
+
+            return response()->json([
+                'success' => true,
+                'message'  => 'removed'
+            ]);
+        }
+
+        $existing->update([
+            'reaction' => $reaction
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message'  => 'updated'
         ]);
     }
 }
