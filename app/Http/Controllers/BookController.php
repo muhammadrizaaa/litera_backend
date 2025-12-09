@@ -46,7 +46,7 @@ class BookController extends Controller
     }
 
     public function show($id){
-        $book = Book::with(['user', 'categories'])->find($id);
+        $book = Book::with(['user'])->find($id);
 
         if (!$book) {
             return response()->json([
@@ -63,7 +63,7 @@ class BookController extends Controller
     }
 
     public function showAuthenticated($id){
-        $book = Book::with(['user', 'categories'])->find($id);
+        $book = Book::with('user')->find($id);
 
         if (!$book) {
             return response()->json([
@@ -87,6 +87,29 @@ class BookController extends Controller
             'success' => true,
             'message' => "Book succcessfully retrieved",
             'data' => $responseData
+        ]);
+    }
+
+    public function search(Request $request)
+    {
+        $query = $request->input('query');
+
+        if (!$query) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Search query is required'
+            ], 400);
+        }
+
+        $books = Book::where('name', 'LIKE', "%{$query}%")
+            ->orWhere('author', 'LIKE', "%{$query}%")
+            ->orWhere('description', 'LIKE', "%{$query}%")
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Search results retrieved successfully',
+            'data' => $books
         ]);
     }
 
