@@ -93,6 +93,7 @@ class BookController extends Controller
     public function search(Request $request)
     {
         $query = $request->input('query');
+        $per_page = $request->input('per_page',5);
 
         if (!$query) {
             return response()->json([
@@ -101,10 +102,10 @@ class BookController extends Controller
             ], 400);
         }
 
-        $books = Book::where('name', 'LIKE', "%{$query}%")
+        $books = Book::with('user')->where('name', 'LIKE', "%{$query}%")
             ->orWhere('author', 'LIKE', "%{$query}%")
             ->orWhere('description', 'LIKE', "%{$query}%")
-            ->get();
+            ->paginate($per_page);
 
         return response()->json([
             'success' => true,
