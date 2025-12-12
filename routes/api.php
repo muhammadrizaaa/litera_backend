@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\BookController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\CommentController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -31,7 +32,9 @@ Route::middleware(['auth:sanctum', 'api.auth'])->group(function () {
     Route::post("/authenticated/fav-book/add/{id}", [BookController::class, 'addFavBook']);
     Route::post("/authenticated/fav-book/remove/{id}", [BookController::class, 'removeFavBook']);
     Route::post("/authenticated/reaction/{bookId}/{reaction}", [BookController::class, 'addBookReaction']);
+    Route::post("/authenticated/comments/create/{bookId}", [CommentController::class, 'create']);
 });
-Route::get("book/search", [BookController::class, 'search']);
+Route::get("/comments/get/{bookId}", [CommentController::class, 'indexByBook']);
+Route::get("/book/search", [BookController::class, 'search']);
 Route::get("/books/{id}", [BookController::class, 'show']);
 
