@@ -113,7 +113,7 @@ class CategoryController extends Controller
         ]);
 
         // Attach categories to user (avoids duplicates)
-        $user->favoriteCategories()->syncWithoutDetaching($validated['categories']);
+        $user->favoriteCategories()->sync($validated['categories']);
 
         return response()->json([
             'success' => true,

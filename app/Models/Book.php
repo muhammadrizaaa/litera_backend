@@ -30,7 +30,7 @@ class Book extends Model
         'is_visible' => 'boolean',
         'published_date' => 'date',
     ];
-    protected $appends = ['user_reaction', 'is_favorited', 'fav_counts', 'readers_counts', 'categories'];
+    protected $appends = ['user_reaction', 'is_favorited', 'fav_counts', 'readers_counts', 'comments_counts', 'categories'];
 
     protected $hidden = ['assignedToCategories'];
     public function getReadersCountsAttribute(){
@@ -47,6 +47,9 @@ class Book extends Model
         if (!$user) return false;
 
         return $this->favoritedByUser()->where('user_id', $user->id)->exists();
+    }
+    public function getCommentsCountsAttribute(){
+        return $this->comments()->count();
     }
 
     public function user()
@@ -86,5 +89,8 @@ class Book extends Model
         return $this->bookReactions()
             ->where('user_id', auth()->id())
             ->value('reaction') ?? 0;
+    }
+    public function comments(){
+        return $this->hasMany(Comment::class, 'book_id');
     }
 }

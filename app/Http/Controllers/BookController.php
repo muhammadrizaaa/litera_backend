@@ -22,12 +22,23 @@ class BookController extends Controller
         ]);
     }
 
-    public function getContinueRead(){
+    public function getContinueRead(Request $request){
         $userId = auth()->id();
+        $query = ReadingProgress::query()
+            ->join('books', 'books.id', '=', 'reading_progress.book_id')
+            ->where('reading_progress.user_id', $userId)
+            ->with('book')
+            ->select('reading_progress.*');
 
-        $progressList = ReadingProgress::with('book')
-            ->where('user_id', $userId)
-            ->get();
+        if ($request->sort === 'progress') {
+            // Order by progress percentage
+            $query->orderByRaw('(reading_progress.progress_page / books.pages) desc');
+        } else {
+            // Default: last updated
+            $query->orderBy('reading_progress.updated_at', 'desc');
+        }
+
+        $progressList = $query->get();
 
         return response()->json([
             'success' => true,
@@ -42,6 +53,19 @@ class BookController extends Controller
                     'updated_at'    => $item->updated_at,
                 ];
             })
+        ]);
+    }
+
+    public function getBooksByGenre($genre){
+        $books = Book::whereHas('categories', function ($q) use ($genre) {
+            $q->where('categories.id', $genre);
+        })
+        ->with('categories')
+        ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $books
         ]);
     }
 

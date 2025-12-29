@@ -37,4 +37,5 @@ Route::middleware(['auth:sanctum', 'api.auth'])->group(function () {
 Route::get("/comments/get/{bookId}", [CommentController::class, 'indexByBook']);
 Route::get("/book/search", [BookController::class, 'search']);
 Route::get("/books/{id}", [BookController::class, 'show']);
+Route::get('/books/genres/{genre}', [BookController::class, 'getBooksByGenre']);
 

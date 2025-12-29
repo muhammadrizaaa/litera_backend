@@ -14,23 +14,35 @@ class Comment extends Model
         "reply_to"
     ];
 
-    protected $appends = ["is_uploader", "user_reply_to"];
+    protected $appends = ["is_uploader", "user_reply_to", 'replies_counts'];
     protected $hidden = [
         "book",
         "parent",
-        "reply_to"
+        "reply_to",
     ];
 
     public function getUserReplyToAttribute(){
-        return $this->parent?->user ?? null;
+        if (!$this->parent) {
+            return null;
+        }
+
+        return $this->parent->makeHidden([
+            'user_reply_to',
+            'parent',
+            'replies',
+            'replies_counts',
+        ])->load('user');
     }
 
     public function getIsUploaderAttribute(){
         return $this->user_id == $this->book->user_id;
     }
+    public function getRepliesCountsAttribute(){
+        return $this->replies()->count();
+    }
 
     public function parent(){
-        return $this->belongsTo(Comment::class, "parent_id");
+        return $this->belongsTo(Comment::class, "reply_to");
     }
 
     public function user(){
